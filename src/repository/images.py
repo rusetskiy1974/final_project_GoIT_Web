@@ -20,19 +20,11 @@ async def get_image(query, db: AsyncSession):
     return result.scalar_one_or_none()
 
 
-#
-# # Offset\limit
-# def get_files_from_db_limit_offset(query, limit: int = None, offset: int = None):
-#     if limit and not offset:
-#         query = query[:limit]
-#     elif limit and offset:
-#         limit += offset
-#         query = query[offset:limit]
-#     elif not limit and offset:
-#         query = query[offset:]
-#     return query
-#
-#
+async def get_images(query, db: AsyncSession):
+    images = await db.execute(query)
+    return images.scalars().all()
+
+
 # Delete file from uploads folder
 async def delete_image_from_uploads(file_name):
     try:
@@ -68,23 +60,6 @@ async def file_is_image(file: UploadFile):
         return False
 
 
-#
-# # Add File to DB
-# def add_file_to_db(db, **kwargs):
-#     new_file = db_models.Image(
-#         file_id=kwargs['file_id'],
-#         name=kwargs['full_name'],
-#         tag=kwargs['tag'],
-#         size=kwargs['file_size'],
-#         mime_type=kwargs['file'].content_type,
-#         modification_time=datetime.now()
-#     )
-#     db.add(new_file)
-#     db.commit()
-#     db.refresh(new_file)
-#     return new_file
-#
-
 # Update File in DB
 async def update_image_title(image: Image, title: str, user: User, db: AsyncSession):
     image.title = title
@@ -99,11 +74,6 @@ async def update_image_title(image: Image, title: str, user: User, db: AsyncSess
 async def delete_image_from_db(image: Image, db: AsyncSession):
     await db.delete(image)
     await db.commit()
-
-
-async def get_images(query, db: AsyncSession):
-    images = await db.execute(query)
-    return images.scalars().all()
 
 
 async def get_images_by_tag(tag_name: str, limit: int, offset: int, db: AsyncSession):
@@ -123,21 +93,17 @@ async def get_all_images(limit: int, offset: int, db: AsyncSession):
     return images.scalars().all()
 
 
-def get_tags(image: Image, tag: Tag):
-    return image.tags.append(tag)
-
-
 async def add_tag_to_image(image_id: int, tag_name: str, db: AsyncSession):
     tag = await create_tag(tag_name, db)
     image = await db.get(Image, image_id)
-
-    if image:
-        image.count_tags += 1
-        image.tags.append(tag)
-        await db.commit()
-        await db.refresh(image)
-        return image
-    return
+    db.add(image.tags.append(tag))
+    # if image:
+    #     image.count_tags += 1
+    #     # image.tags_
+    #     await db.commit()
+    #     await db.refresh(image)
+    #     return image
+    # return
 
 
 async def create_tag(tag_name, db: AsyncSession):
@@ -154,15 +120,14 @@ async def create_tag(tag_name, db: AsyncSession):
 
 
 async def create_upload_image(tag: str | None, user: User, db: AsyncSession, **kwargs):
-    some_data = ImageCreateSchema(name=kwargs['name'], size=kwargs['size'], mime_type=kwargs['mime_type'],
-                                  title=kwargs['title'], image_path=kwargs['file_path'])
-    new_image = Image(**some_data.model_dump(exclude_unset=True), owner_id=user.id)
+    data = ImageCreateSchema(name=kwargs['name'], size=kwargs['size'], mime_type=kwargs['mime_type'],
+                             title=kwargs['title'], image_path=kwargs['file_path'])
+    new_image = Image(**data.model_dump(exclude_unset=True), owner_id=user.id)
 
     if tag:
         tag = await create_tag(tag, db)
         new_image.count_tags = 1
         new_image.tags.append(tag)
-
     db.add(new_image)
     await db.commit()
     await db.refresh(new_image)
