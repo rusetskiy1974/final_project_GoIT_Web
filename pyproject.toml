@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "final-project-goit-web"
+version = "0.1.0"
+description = ""
+authors = ["SergRusetskiy1974 <113336060+rusetskiy1974@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = {extras = ["all"], version = "^0.110.1"}
+sqlalchemy = "^2.0.29"
+alembic = "^1.13.1"
+psycopg2-binary = "^2.9.9"
+asyncio-redis = "^0.16.0"
+redis = "^5.0.3"
+asyncpg = "^0.29.0"
+libgravatar = "^1.0.4"
+passlib = "^1.7.4"
+python-jose = "^3.3.0"
+fastapi-mail = "^1.4.1"
+python-multipart = "^0.0.9"
+cloudinary = "^1.40.0"
+bcrypt = "4.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
