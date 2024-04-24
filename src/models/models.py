@@ -37,7 +37,7 @@ class ImageTagAssociation(Base):
     id = Column(Integer, primary_key=True)
     image_id = Column(Integer, ForeignKey("images.id", ondelete="CASCADE", onupdate="CASCADE"))
     tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE", onupdate="CASCADE"))
-    
+
 
 
 class Image(Base):
@@ -54,7 +54,7 @@ class Image(Base):
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     count_tags = Column(Integer, default=0, nullable=False)
     owner = relationship("User", back_populates="images", lazy="joined")
-    tags = relationship("Tag", secondary="image_tag_association", back_populates="images")
+    tags = relationship("Tag", secondary="image_tag_association", back_populates="images", lazy="joined")
     comments = relationship("Comment", back_populates="image")
 
 
@@ -63,7 +63,7 @@ class Tag(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    images = relationship("Image", secondary="image_tag_association", back_populates="tags")
+    images = relationship("Image", secondary="image_tag_association", back_populates="tags", lazy="joined")
 
 
 class Comment(Base):

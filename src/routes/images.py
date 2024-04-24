@@ -32,8 +32,7 @@ async def add_tag_to_image(image_id: int = Path(ge=1),
 
     result = await repository_images.add_tag_to_image(image_id, tag_name, db)
     if not result:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail=f"Max tags to add to image reached {settings.max_add_tags}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="IMAGE NOT EXISTS")
     return result
 
 
@@ -105,7 +104,7 @@ async def update_image(image_id: int = Path(ge=1),
     query = select(Image).filter_by(id=image_id).filter_by(owner_id=user.id)
     image = await repository_images.get_image(query, db)
     if image:
-        image = await repository_images.update_image_title(image, title, user, db)
+        image = await repository_images.update_image_title(image, title, db)
         return image
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")

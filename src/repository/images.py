@@ -5,10 +5,11 @@ from uuid import uuid4
 
 import cloudinary
 import cloudinary.uploader
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from src.models.models import Image, Tag, User
 from src.conf.config import settings
@@ -17,12 +18,12 @@ from src.schemas.images import ImageCreateSchema
 
 async def get_image(query, db: AsyncSession):
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    return result.unique().scalar_one_or_none()
 
 
 async def get_images(query, db: AsyncSession):
     images = await db.execute(query)
-    return images.scalars().all()
+    return images.unique().scalars().all()
 
 
 # Delete file from uploads folder
@@ -61,7 +62,7 @@ async def file_is_image(file: UploadFile):
 
 
 # Update File in DB
-async def update_image_title(image: Image, title: str, user: User, db: AsyncSession):
+async def update_image_title(image: Image, title: str, db: AsyncSession):
     image.title = title
     await db.commit()
     await db.refresh(image)
@@ -79,11 +80,11 @@ async def delete_image_from_db(image: Image, db: AsyncSession):
 async def get_images_by_tag(tag_name: str, limit: int, offset: int, db: AsyncSession):
     query = select(Tag).filter_by(name=tag_name)
     tag = await db.execute(query)
-    tag = tag.scalar_one_or_none()
+    tag = tag.unique().scalar_one_or_none()
     if tag:
         query = select(Image).filter(Image.tags.contains(tag)).offset(offset).limit(limit)
         images = await db.execute(query)
-        return images.scalars().all()
+        return images.unique().scalars().all()
     return
 
 
@@ -94,22 +95,31 @@ async def get_all_images(limit: int, offset: int, db: AsyncSession):
 
 
 async def add_tag_to_image(image_id: int, tag_name: str, db: AsyncSession):
+    query = select(Image).filter_by(id=image_id)
+    image = await db.execute(query)
+    image = image.unique().scalar_one_or_none()
     tag = await create_tag(tag_name, db)
-    image = await db.get(Image, image_id)
-    db.add(image.tags.append(tag))
-    # if image:
-    #     image.count_tags += 1
-    #     # image.tags_
-    #     await db.commit()
-    #     await db.refresh(image)
-    #     return image
-    # return
+    if image:
+        if tag not in image.tags and image.count_tags <= settings.max_add_tags-1:
+            image.count_tags += 1
+            image.tags.append(tag)
+            await db.commit()
+            await db.refresh(image)
+            return image
+        else:
+            if tag in image.tags:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tag is already added to image")
+            else:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=f"You can't add more than {settings.max_add_tags} tags to image")
+
+    return
 
 
-async def create_tag(tag_name, db: AsyncSession):
+async def create_tag(tag_name: str, db: AsyncSession):
     query = select(Tag).filter_by(name=tag_name)
     tag = await db.execute(query)
-    tag = tag.scalar_one_or_none()
+    tag = tag.unique().scalar_one_or_none()
     if tag is None:
         new_tag = Tag(name=tag_name)
         db.add(new_tag)
